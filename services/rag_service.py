@@ -3,6 +3,7 @@ import requests
 from dotenv import load_dotenv
 from fuzzywuzzy import fuzz
 from deep_translator import GoogleTranslator
+from services.intent_service import detect_question_type, detect_answer_type
 
 load_dotenv()
 
@@ -70,6 +71,8 @@ def get_all_knowledge() -> list:
         return []
 
 
+
+
 def retrieve_context(query: str, top_k: int = 5) -> list:
     knowledge_list = get_all_knowledge()
 
@@ -78,7 +81,10 @@ def retrieve_context(query: str, top_k: int = 5) -> list:
     translated_words = filter_query_words(translated_query)
     query_words = list(set(original_words + translated_words))
 
-    print(f"DEBUG KB - Query words (final): {query_words}")
+    # Deteksi tipe pertanyaan user
+    question_type = detect_question_type(query)
+    print(f"DEBUG KB - Question type: {question_type}")
+    print(f"DEBUG KB - Query words: {query_words}")
 
     if not query_words:
         return []
@@ -116,10 +122,19 @@ def retrieve_context(query: str, top_k: int = 5) -> list:
                             break
 
         coverage = len(matched_words) / len(query_words) if query_words else 0
-        print(f"DEBUG KB - '{item['question'][:35]}' | Score: {score} | Coverage: {coverage:.0%}")
 
-        # Minimal 60% kata query harus match & score minimal 3
-        if score >= 3 and coverage >= 0.6:
+        # Deteksi tipe jawaban KB
+        answer_type = detect_answer_type(item["answer"])
+
+        # Kalau tipe pertanyaan BUKAN "umum", pastikan tipe jawaban sesuai
+        if question_type != "umum" and answer_type != "umum":
+            if question_type != answer_type:
+                print(f"DEBUG KB - SKIP '{item['question'][:35]}' (tanya {question_type}, jawaban {answer_type})")
+                continue
+
+        print(f"DEBUG KB - '{item['question'][:35]}' | Score: {score} | Coverage: {coverage:.0%} | Q-type: {question_type} | A-type: {answer_type}")
+
+        if score >= 3 and coverage >= 0.75:
             matches.append({
                 "item"    : item,
                 "score"   : score,
