@@ -84,11 +84,11 @@ def retrieve_from_documents(query: str, top_k: int = 3) -> list:
             score = 0
 
             for qword in query_words:
-                # Exact match
+                
                 if qword in chunk_words:
                     score += 2
                 else:
-                    # Fuzzy match
+                
                     for cw in chunk_words:
                         if fuzzy_match(qword, cw, threshold=80):
                             score += 1
